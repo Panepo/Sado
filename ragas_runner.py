@@ -19,6 +19,7 @@ from ragas.llms import llm_factory
 from ragas.metrics.collections import (
     Faithfulness,
     ContextPrecisionWithReference,
+    ContextPrecisionWithoutReference,
     ContextRecall,
     NoiseSensitivity,
     AnswerRelevancy,
@@ -106,6 +107,13 @@ METRIC_REGISTRY: dict[str, dict[str, Any]] = {
         "needs_llm": True,
         "needs_embedding": False,
         "cls": ContextPrecisionWithReference,
+    },
+    "context_precision_without_reference": {
+        "display_name": "Context Precision (No Reference)",
+        "required_fields": ["user_input", "response", "retrieved_contexts"],
+        "needs_llm": True,
+        "needs_embedding": False,
+        "cls": ContextPrecisionWithoutReference,
     },
     "response_relevancy": {
         "display_name": "Response Relevancy",
