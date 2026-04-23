@@ -25,15 +25,6 @@ def install_dep():
   print("Installing dependencies...")
   print(f"Python version: {sys.version}")
 
-  # Check Python version compatibility
-  if sys.version_info >= (3, 13):
-    print(f"WARNING: Python {sys.version_info.major}.{sys.version_info.minor} detected.")
-    print("onnxruntime may not support this version yet.")
-    print("Recommended: Use Python 3.11 or 3.12")
-    response = input("Continue anyway? (y/n): ")
-    if response.lower() != 'y':
-      sys.exit(1)
-
   try:
     pip_install(
       "fastapi",
