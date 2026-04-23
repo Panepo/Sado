@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAGAS Evaluation Server</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f5f7fa;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #16213e;
+      color: #eaeaea;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    header h1 { font-size: 1.3rem; font-weight: 600; letter-spacing: 0.02em; }
+    header span { font-size: 1.5rem; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 0;
+      min-height: calc(100vh - 56px);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: #0f3460;
+      color: #cfe2ff;
+      padding: 1.25rem 1rem;
+      overflow-y: auto;
+    }
+    .sidebar h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: #90b4d6; margin-bottom: 0.75rem; }
+
+    .metric-group { margin-bottom: 1rem; }
+    .metric-group-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6fa3c8; margin-bottom: 0.4rem; border-bottom: 1px solid #1a4a6e; padding-bottom: 0.2rem; }
+
+    .metric-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.35rem 0.25rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .metric-item:hover { background: rgba(255,255,255,0.06); }
+    .metric-item input[type="checkbox"] { margin-top: 2px; accent-color: #4fc3f7; flex-shrink: 0; }
+    .metric-item label { font-size: 0.875rem; cursor: pointer; line-height: 1.3; }
+    .metric-item .req-fields { font-size: 0.7rem; color: #6fa3c8; margin-top: 2px; }
+
+    .select-all-row { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .select-all-row button {
+      font-size: 0.72rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 3px;
+      border: 1px solid #3a6186;
+      background: transparent;
+      color: #90b4d6;
+      cursor: pointer;
+    }
+    .select-all-row button:hover { background: rgba(255,255,255,0.08); }
+
+    /* Main */
+    .main { padding: 1.5rem 2rem; overflow-y: auto; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid #dde; margin-bottom: 1.5rem; }
+    .tab-btn {
+      padding: 0.6rem 1.4rem;
+      background: none;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #666;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab-btn.active { color: #0f3460; border-color: #0f3460; }
+    .tab-btn:hover:not(.active) { color: #333; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Form */
+    .form-grid { display: grid; gap: 1rem; max-width: 860px; }
+    .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
+    .form-group label { font-size: 0.85rem; font-weight: 600; color: #334; }
+    .form-group .hint { font-size: 0.75rem; color: #777; }
+    .form-group textarea, .form-group input[type="text"] {
+      border: 1px solid #ccd;
+      border-radius: 5px;
+      padding: 0.55rem 0.7rem;
+      font-size: 0.9rem;
+      font-family: inherit;
+      resize: vertical;
+      background: #fff;
+      transition: border-color 0.15s;
+    }
+    .form-group textarea:focus, .form-group input[type="text"]:focus {
+      outline: none;
+      border-color: #0f3460;
+    }
+
+    /* Drop zone */
+    .dropzone {
+      border: 2px dashed #aab;
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      color: #667;
+      cursor: pointer;
+      background: #fff;
+      transition: border-color 0.15s, background 0.15s;
+      max-width: 860px;
+    }
+    .dropzone.dragover { border-color: #0f3460; background: #eef3fb; }
+    .dropzone input[type="file"] { display: none; }
+    .dropzone-label { font-size: 0.95rem; }
+    .dropzone-hint { font-size: 0.78rem; color: #99a; margin-top: 0.4rem; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.55rem 1.3rem;
+      border-radius: 5px;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: #0f3460; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #16213e; }
+
+    /* Results */
+    .results-section { margin-top: 1.5rem; max-width: 900px; }
+    .results-title { font-size: 0.95rem; font-weight: 700; color: #334; margin-bottom: 0.75rem; }
+    .scores-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .score-card {
+      background: #fff;
+      border: 1px solid #dde;
+      border-radius: 8px;
+      padding: 0.75rem 1.1rem;
+      min-width: 160px;
+      text-align: center;
+    }
+    .score-card .metric-name { font-size: 0.78rem; color: #556; margin-bottom: 0.25rem; font-weight: 500; }
+    .score-card .score-value { font-size: 1.6rem; font-weight: 700; color: #0f3460; }
+    .score-card .score-na { font-size: 1rem; color: #aab; }
+
+    /* Batch results table */
+    .batch-table-wrap { overflow-x: auto; max-width: 100%; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    thead { background: #0f3460; color: #fff; }
+    th, td { padding: 0.55rem 0.85rem; text-align: left; border-bottom: 1px solid #eef; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f5f8ff; }
+    .expand-btn { background: none; border: none; cursor: pointer; color: #0f3460; font-size: 0.75rem; font-weight: 600; }
+    .sample-detail { display: none; white-space: pre-wrap; font-size: 0.78rem; color: #445; background: #f8f9fb; border-radius: 4px; padding: 0.5rem; margin-top: 0.25rem; }
+    .sample-detail.open { display: block; }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: #c0392b;
+      color: #fff;
+      padding: 0.75rem 1.1rem;
+      border-radius: 7px;
+      font-size: 0.875rem;
+      max-width: 380px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+      z-index: 999;
+      line-height: 1.4;
+    }
+    #toast.show { opacity: 1; pointer-events: auto; }
+
+    /* Spinner */
+    .spinner {
+      display: none;
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading .spinner { display: inline-block; }
+
+    /* Misc */
+    .file-selected { font-size: 0.82rem; color: #0f3460; margin-top: 0.4rem; }
+    .format-hint {
+      background: #eef3fb;
+      border-left: 3px solid #0f3460;
+      padding: 0.6rem 0.9rem;
+      border-radius: 0 5px 5px 0;
+      font-size: 0.8rem;
+      color: #334;
+      margin-top: 1rem;
+      max-width: 860px;
+    }
+    .format-hint code { background: #dce8f8; border-radius: 3px; padding: 0.1rem 0.3rem; font-size: 0.78rem; }
+    pre.code-example { background: #1a1a2e; color: #cfe2ff; border-radius: 5px; padding: 0.75rem 1rem; font-size: 0.78rem; margin-top: 0.4rem; overflow-x: auto; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span>&#127919;</span>
+  <h1>RAGAS Evaluation Server</h1>
+</header>
+
+<div class="layout">
+  <!-- Sidebar: metric picker -->
+  <aside class="sidebar">
+    <h2>Metrics</h2>
+    <div class="select-all-row">
+      <button onclick="setAll(true)">All</button>
+      <button onclick="setAll(false)">None</button>
+    </div>
+    <div id="metric-list">Loading metrics…</div>
+  </aside>
+
+  <!-- Main area -->
+  <main class="main">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('single', this)">Single Entry</button>
+      <button class="tab-btn" onclick="switchTab('batch', this)">Batch Upload</button>
+    </div>
+
+    <!-- Single tab -->
+    <div id="tab-single" class="tab-panel active">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="user_input">User Input (question)</label>
+          <textarea id="user_input" rows="2" placeholder="What is the capital of France?"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="retrieved_contexts">Retrieved Contexts</label>
+          <span class="hint">Separate context chunks with <code>---</code>.</span>
+          <textarea id="retrieved_contexts" rows="5" placeholder="France is a country in Western Europe.&#10;---&#10;Paris is the capital of France."></textarea>
+        </div>
+        <div class="form-group">
+          <label for="response">Response (LLM answer)</label>
+          <textarea id="response" rows="3" placeholder="The capital of France is Paris."></textarea>
+        </div>
+        <div class="form-group" id="reference-group">
+          <label for="reference">Reference / Ground Truth</label>
+          <textarea id="reference" rows="2" placeholder="Paris is the capital of France."></textarea>
+        </div>
+      </div>
+      <br />
+      <button class="btn btn-primary" id="btn-single" onclick="runSingle()">
+        <span class="spinner" id="spin-single"></span>
+        Evaluate
+      </button>
+
+      <div class="results-section" id="single-results"></div>
+    </div>
+
+    <!-- Batch tab -->
+    <div id="tab-batch" class="tab-panel">
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('batch-file').click()"
+           ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <input type="file" id="batch-file" accept=".json,.csv" onchange="onFileSelected(this)" />
+        <div class="dropzone-label">&#128196; Click or drag & drop a file here</div>
+        <div class="dropzone-hint">Accepted formats: <strong>.json</strong> (array of objects) or <strong>.csv</strong></div>
+        <div class="file-selected" id="file-name"></div>
+      </div>
+
+      <div class="format-hint">
+        <strong>JSON format</strong> — array of objects with any of: <code>user_input</code>, <code>retrieved_contexts</code> (array), <code>response</code>, <code>reference</code>
+        <pre class="code-example">[
+  {
+    "user_input": "What is the capital of France?",
+    "retrieved_contexts": ["Paris is the capital of France."],
+    "response": "Paris.",
+    "reference": "Paris"
+  }
+]</pre>
+        <strong>CSV format</strong> — same column names; <code>retrieved_contexts</code> column should be a JSON array string.
+      </div>
+      <br />
+      <button class="btn btn-primary" id="btn-batch" onclick="runBatch()">
+        <span class="spinner" id="spin-batch"></span>
+        Evaluate Batch
+      </button>
+
+      <div class="results-section" id="batch-results"></div>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  // -------------------------------------------------------------------------
+  // State
+  // -------------------------------------------------------------------------
+  let allMetrics = [];
+
+  // -------------------------------------------------------------------------
+  // Boot – fetch metrics
+  // -------------------------------------------------------------------------
+  async function loadMetrics() {
+    try {
+      const res = await fetch('/api/metrics');
+      if (!res.ok) throw new Error(await res.text());
+      allMetrics = await res.json();
+      renderMetrics();
+    } catch (e) {
+      document.getElementById('metric-list').textContent = 'Failed to load metrics.';
+      showToast('Could not load metrics: ' + e.message);
+    }
+  }
+
+  function renderMetrics() {
+    const groups = {
+      'LLM-based': allMetrics.filter(m => m.needs_llm && !m.needs_embedding),
+      'LLM + Embedding': allMetrics.filter(m => m.needs_llm && m.needs_embedding),
+      'Traditional (no LLM)': allMetrics.filter(m => !m.needs_llm),
+    };
+
+    const container = document.getElementById('metric-list');
+    container.innerHTML = '';
+
+    for (const [groupName, metrics] of Object.entries(groups)) {
+      if (!metrics.length) continue;
+      const group = document.createElement('div');
+      group.className = 'metric-group';
+      group.innerHTML = `<div class="metric-group-title">${groupName}</div>`;
+
+      metrics.forEach(m => {
+        const item = document.createElement('div');
+        item.className = 'metric-item';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.id = 'm_' + m.id;
+        cb.value = m.id;
+        cb.checked = true;
+        cb.addEventListener('change', updateReferenceVisibility);
+        item.appendChild(cb);
+        const info = document.createElement('div');
+        info.innerHTML = `<label for="m_${m.id}">${m.display_name}</label><div class="req-fields">Needs: ${m.required_fields.join(', ')}</div>`;
+        item.appendChild(info);
+        group.appendChild(item);
+      });
+
+      container.appendChild(group);
+    }
+    updateReferenceVisibility();
+  }
+
+  function updateReferenceVisibility() {
+    const needsRef = selectedMetrics().some(id =>
+      (allMetrics.find(m => m.id === id)?.required_fields ?? []).includes('reference')
+    );
+    document.getElementById('reference-group').style.display = needsRef ? '' : 'none';
+  }
+
+  function setAll(checked) {
+    document.querySelectorAll('#metric-list input[type="checkbox"]')
+      .forEach(cb => cb.checked = checked);
+    updateReferenceVisibility();
+  }
+
+  function selectedMetrics() {
+    return [...document.querySelectorAll('#metric-list input[type="checkbox"]:checked')]
+      .map(cb => cb.value);
+  }
+
+  // -------------------------------------------------------------------------
+  // Tabs
+  // -------------------------------------------------------------------------
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  // -------------------------------------------------------------------------
+  // Single evaluation
+  // -------------------------------------------------------------------------
+  async function runSingle() {
+    const metrics = selectedMetrics();
+    if (!metrics.length) { showToast('Select at least one metric.'); return; }
+
+    const body = {
+      user_input: document.getElementById('user_input').value.trim(),
+      retrieved_contexts: document.getElementById('retrieved_contexts').value
+        .split('---').map(s => s.trim()).filter(Boolean),
+      response: document.getElementById('response').value.trim(),
+      reference: document.getElementById('reference').value.trim(),
+      metrics,
+    };
+
+    setLoading('btn-single', 'spin-single', true);
+    document.getElementById('single-results').innerHTML = '';
+
+    try {
+      const res = await fetch('/api/evaluate/single', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+      renderScores(data.scores, 'single-results');
+    } catch (e) {
+      showToast('Error: ' + e.message);
+    } finally {
+      setLoading('btn-single', 'spin-single', false);
+    }
+  }
+
+  function renderScores(scores, containerId) {
+    const section = document.getElementById(containerId);
+    section.innerHTML = '<div class="results-title">Results</div><div class="scores-grid" id="sg_' + containerId + '"></div>';
+    const grid = document.getElementById('sg_' + containerId);
+
+    for (const [key, val] of Object.entries(scores)) {
+      const card = document.createElement('div');
+      card.className = 'score-card';
+      const display = val !== null && val !== undefined
+        ? `<div class="score-value">${(val * 100).toFixed(1)}<small style="font-size:0.9rem;color:#667">%</small></div>`
+        : `<div class="score-na">N/A</div>`;
+      card.innerHTML = `<div class="metric-name">${key.replace(/_/g,' ')}</div>${display}`;
+      grid.appendChild(card);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Batch evaluation
+  // -------------------------------------------------------------------------
+  let batchFile = null;
+
+  function onFileSelected(input) {
+    batchFile = input.files[0] || null;
+    document.getElementById('file-name').textContent = batchFile ? '&#10003; ' + batchFile.name : '';
+  }
+
+  function onDragOver(e) {
+    e.preventDefault();
+    document.getElementById('dropzone').classList.add('dragover');
+  }
+  function onDragLeave(e) {
+    document.getElementById('dropzone').classList.remove('dragover');
+  }
+  function onDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropzone').classList.remove('dragover');
+    const f = e.dataTransfer.files[0];
+    if (f) {
+      batchFile = f;
+      document.getElementById('file-name').textContent = '&#10003; ' + f.name;
+    }
+  }
+
+  async function runBatch() {
+    const metrics = selectedMetrics();
+    if (!metrics.length) { showToast('Select at least one metric.'); return; }
+    if (!batchFile) { showToast('Please select a file first.'); return; }
+
+    const form = new FormData();
+    form.append('file', batchFile);
+    form.append('metrics', JSON.stringify(metrics));
+
+    setLoading('btn-batch', 'spin-batch', true);
+    document.getElementById('batch-results').innerHTML = '';
+
+    try {
+      const res = await fetch('/api/evaluate/batch', { method: 'POST', body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+      renderBatchResults(data.results, 'batch-results');
+    } catch (e) {
+      showToast('Error: ' + e.message);
+    } finally {
+      setLoading('btn-batch', 'spin-batch', false);
+    }
+  }
+
+  function renderBatchResults(results, containerId) {
+    if (!results.length) {
+      document.getElementById(containerId).innerHTML = '<p style="color:#667;margin-top:1rem;">No results returned.</p>';
+      return;
+    }
+
+    const metricKeys = Object.keys(results[0].scores);
+    let html = `<div class="results-title">Batch Results (${results.length} rows)</div>
+      <div class="batch-table-wrap"><table>
+      <thead><tr>
+        <th>#</th><th>User Input</th>
+        ${metricKeys.map(k => `<th>${k.replace(/_/g,' ')}</th>`).join('')}
+        <th>Detail</th>
+      </tr></thead><tbody>`;
+
+    results.forEach((r, i) => {
+      const inputPreview = (r.sample.user_input || '').slice(0, 60);
+      const scores = metricKeys.map(k => {
+        const v = r.scores[k];
+        return `<td>${v !== null && v !== undefined ? (v * 100).toFixed(1) + '%' : 'N/A'}</td>`;
+      }).join('');
+      html += `<tr>
+        <td>${i + 1}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(r.sample.user_input || '')}">${escHtml(inputPreview)}${inputPreview.length < (r.sample.user_input || '').length ? '…' : ''}</td>
+        ${scores}
+        <td><button class="expand-btn" onclick="toggleDetail(${i})">&#9656; view</button>
+          <div class="sample-detail" id="detail_${i}">${escHtml(JSON.stringify(r.sample, null, 2))}</div>
+        </td>
+      </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    document.getElementById(containerId).innerHTML = html;
+  }
+
+  function toggleDetail(i) {
+    const el = document.getElementById('detail_' + i);
+    const btn = el.previousElementSibling;
+    el.classList.toggle('open');
+    btn.textContent = el.classList.contains('open') ? '&#9662; hide' : '&#9656; view';
+  }
+
+  // -------------------------------------------------------------------------
+  // Utilities
+  // -------------------------------------------------------------------------
+  function setLoading(btnId, spinId, on) {
+    const btn = document.getElementById(btnId);
+    const spin = document.getElementById(spinId);
+    btn.disabled = on;
+    btn.classList.toggle('loading', on);
+    spin.style.display = on ? 'inline-block' : 'none';
+  }
+
+  let _toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.remove('show'), 6000);
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // -------------------------------------------------------------------------
+  loadMetrics();
+</script>
+</body>
+</html>
