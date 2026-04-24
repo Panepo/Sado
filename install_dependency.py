@@ -49,7 +49,4 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   args = parser.parse_args()
 
-  if is_venv():
-    install_dep()
-  else:
-    print("Not running inside a virtual environment")
+  install_dep()
