@@ -1,4 +1,4 @@
-# RAGAS Evaluation Server
+# Sado: RAGAS Evaluation Server
 
 A FastAPI backend with a browser-based UI for evaluating RAG (Retrieval-Augmented Generation) outputs using [RAGAS](https://docs.ragas.io/) metrics. All LLM and embedding inference runs locally via [Ollama](https://ollama.com/).
 
@@ -46,10 +46,10 @@ OLLAMA_EMBED_MODEL=nomic-embed-text
 ### 3. Start the server
 
 ```bash
-uvicorn server:app --reload
+uvicorn server:app --reload --port 8040
 ```
 
-Open [http://localhost:8000](http://localhost:8000) in your browser.
+Open [http://localhost:8040](http://localhost:8040) in your browser.
 
 ## Usage
 
@@ -138,7 +138,7 @@ Returns:
 
 ```bash
 docker build -t ragas-server .
-docker run -p 8000:8000 --env-file .env ragas-server
+docker run -p 8040:8040 --env-file .env ragas-server
 ```
 
 > **Note:** The container needs network access to your Ollama instance. If Ollama runs on the host, use `host.docker.internal` as the hostname on Mac/Windows, or `--network host` on Linux.
